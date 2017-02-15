@@ -1,4 +1,5 @@
-from main import db
+from main import db, ma
+from marshmallow import fields
 
 class Employee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -13,3 +14,18 @@ class Employee(db.Model):
     email = db.Column(db.String(40))
     license_plate = db.Column(db.String(40))
     cellphone = db.Column(db.String(16))
+
+
+class EmployeeSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    first_th = fields.String(required=True)
+    first_en = fields.String(required=True)
+    last_th = fields.String(required=True)
+    last_en = fields.String(required=True)
+    date_of_birth = fields.DateTime()
+    employed_date = fields.DateTime()
+    affiliation_id = fields.Integer()
+    office_id = fields.Integer()
+    email = fields.String()
+    license_plate = fields.String()
+    cellphone = fields.String()
