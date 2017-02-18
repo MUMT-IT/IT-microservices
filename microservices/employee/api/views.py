@@ -2,6 +2,7 @@ from flask import jsonify
 from flask_restful import Api, Resource
 from . import employee_bp
 from models import Employee, EmployeeSchema
+from flask.ext.restful.utils import cors
 
 api = Api(employee_bp)
 
@@ -15,6 +16,7 @@ class EmployeeResource(Resource):
         return jsonify({'employee': result})
 
 class EmployeeListResource(Resource):
+    @cors.crossdomain(origin='*')
     def get(self):
         empls = Employee.query.all()
         result = employees_schema.dump(empls).data
