@@ -12,7 +12,8 @@ class Employee(db.Model):
     affiliation_id = db.Column(db.Integer,
                         db.ForeignKey('affiliation.id'), nullable=False)
     affiliation = db.relationship('Affiliation',
-                        backref=db.backref('members', lazy='dynamic'))
+                        backref=db.backref('members', lazy='dynamic'),
+                        foreign_keys=[affiliation_id])
     office_id = db.Column(db.Integer, nullable=True)
     email = db.Column(db.String(40))
     license_plate = db.Column(db.String(40))
