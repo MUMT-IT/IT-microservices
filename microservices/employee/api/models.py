@@ -9,12 +9,20 @@ class Employee(db.Model):
     last_en = db.Column(db.String(80), nullable=False)
     date_of_birth = db.Column(db.DateTime, nullable=False)
     employed_date = db.Column(db.DateTime, nullable=True)
-    affiliation_id = db.Column(db.Integer, nullable=False)
+    affiliation_id = db.Column(db.Integer,
+                        db.ForeignKey('affiliation.id'), nullable=False)
+    affiliation = db.relationship('Affiliation',
+                        backref=db.backref('members', lazy='dynamic'))
     office_id = db.Column(db.Integer, nullable=True)
     email = db.Column(db.String(40))
     license_plate = db.Column(db.String(40))
     cellphone = db.Column(db.String(16))
 
+class Affiliation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name_th = db.Column(db.String(80), nullable=False)
+    name_en = db.Column(db.String(80), nullable=False)
+    head_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
 
 class EmployeeSchema(ma.Schema):
     id = fields.Integer(dump_only=True)
