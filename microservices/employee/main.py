@@ -10,7 +10,7 @@ import api.models
 
 def create_app():
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///employees.db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://likit@localhost/employees'
 
     ma.init_app(app)
     db.init_app(app)
