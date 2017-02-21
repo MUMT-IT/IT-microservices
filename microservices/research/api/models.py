@@ -23,11 +23,10 @@ funding_abstracts = db.Table('funding_abstracts',
 class ScopusAffiliation(db.Model):
     __tablename__ = 'scopus_affiliations'
     id = db.Column(db.Integer(), primary_key=True)
-    affil_id = db.Column(db.String(64))
-    url = db.Column(db.Text())
-    name = db.Column(db.String(255))
-    city = db.Column(db.String(255))
-    country = db.Column(db.String(255))
+    name = db.Column(db.UnicodeText(), index=True)
+    city = db.Column(db.UnicodeText())
+    country = db.Column(db.UnicodeText())
+    scopus_affil_id = db.Column(db.UnicodeText())
 
     def __repr__(self):
         return "<ScopusAffiliation id=%s>" % self.affil_id
@@ -39,10 +38,10 @@ class ScopusAuthor(db.Model):
     affil_id = db.Column(db.Integer(),
                 db.ForeignKey('scopus_affiliations.id'))
     initials = db.Column(db.String(8))
-    indexed_name = db.Column(db.String(255))
-    surname = db.Column(db.String(255))
-    given_name = db.Column(db.String(255))
-    preferred_name = db.Column(db.String(255))
+    #indexed_name = db.Column(db.String(255))
+    surname = db.Column(db.UnicodeText())
+    given_name = db.Column(db.UnicodeText())
+    preferred_name = db.Column(db.UnicodeText())
     url = db.Column(db.Text())
     affiliation = db.relationship('ScopusAffiliation',
                     backref=db.backref('authors', lazy='dynamic'))
@@ -60,15 +59,15 @@ class ScopusAbstract(db.Model):
     __tablename__ = 'scopus_abstracts'
     id = db.Column(db.Integer(), primary_key=True)
     url = db.Column(db.Text())
-    identifier = db.Column(db.String(64))
-    pii = db.Column(db.String(64))
-    doi = db.Column(db.String(64))
-    eid = db.Column(db.String(64))
+    identifier = db.Column(db.UnicodeText())
+    pii = db.Column(db.UnicodeText())
+    doi = db.Column(db.UnicodeText())
+    eid = db.Column(db.UnicodeText())
     title = db.Column(db.Text())
-    publication_name = db.Column(db.String(255))
+    publication_name = db.Column(db.UnicodeText())
     citedby_count = db.Column(db.Integer())
     cover_date = db.Column(db.DateTime())
-    description = db.Column(db.Text())
+    description = db.Column(db.UnicodeText())
     authors = db.relationship('ScopusAuthor',
                 secondary=author_abstracts,
                 backref=db.backref('abstracts', lazy='dynamic'))
@@ -98,8 +97,8 @@ class ScopusAbstract(db.Model):
 class Funding(db.Model):
     __tablename__ = 'fundings'
     id = db.Column(db.Integer(), primary_key=True)
-    name = db.Column(db.Text())
-    year = db.Column(db.String(12))
+    name = db.Column(db.UnicodeText())
+    year = db.Column(db.UnicodeText())
     amount = db.Column(db.Float())
     abstracts = db.relationship('ScopusAbstract',
                     secondary=funding_abstracts,

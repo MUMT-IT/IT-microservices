@@ -8,6 +8,7 @@ import requests
 import time
 import xml.etree.ElementTree as et
 import re
+import json
 from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -28,104 +29,78 @@ Affiliations = Base.classes.scopus_affiliations
 
 API_KEY = '871232b0f825c9b5f38f8833dc0d8691'
 
-ITEM_PER_PAGE = 20
+ITEM_PER_PAGE = 10
 SLEEPTIME = 5
 
-def parse_tag(element):
-    return re.match('(\{([^}]+)\})(.*)',
-            element.tag.encode('utf-8')).groups()[-1]
-
-
-def add_abstract(coredata):
-    if not coredata:
-        return None
-
-    d = {}
-    for i in coredata:
-        for k, v in i.iteritems():
-            d[k] = v[0].text
-
-    new_abstract = Abstracts(url=d.get('url', ''),
-                            title=d.get('title', ''),
-                            identifier=d.get('identifier', ''),
-                            pii=d.get('pii', ''),
-                            doi=d.get('doi', ''),
-                            eid=d.get('eid', ''),
-                            publication_name=d.get('publicationName', ''),
-                            citedby_count=d.get('citedby-count', ''),
-                            cover_date=d.get('coverDate', ''),
-                            description=d.get('description', '')
-                            )
-    abstract = session.query(Abstracts).filter_by(doi=d.get('doi')).first()
-    if abstract:
-        print('Article already in the database.')
-        return None
-    else:
-        print('New article.')
-        session.add(new_abstract)
-        #session.commit()
-        session.flush()
-        return new_abstract
-
-
 def add_author(authors, abstract):
+    url = 'http://api.elsevier.com/content/search/author'
     if not authors:
         return None
 
-    for a in authors[0]['author']:
-        d = {}
-        for item in a:
-            tag = parse_tag(item)
-            d[tag] = item.text
+    for au in authors:
+        params = {'apiKey': API_KEY,
+                    'query': 'auid({})'.format(au['authid']),
+                    'httpAccept': 'application/json'}
+        author = requests.get(url, params=params).json()
+        author = author['search-results']['entry'][0]
+        cur_affil = author['affiliation-current']
 
-        new_author = Authors(initials=d.get('initials', ''),
-                indexed_name=d.get('indexed-name', ''),
-                surname=d.get('surname', ''),
-                given_name=d.get('given-name', ''),
-                preferred_name=d.get('preferred-name', ''),
-                url=d.get('author-url', ''))
+        new_author = Authors(initials=author['preferred-name'].get('initials', ''),
+                surname=author['preferred-name'].get('surname', ''),
+                given_name=author['preferred-name'].get('given-name', ''),
+                preferred_name='{} {}'.format(author['preferred-name']['surname'],
+                                    author['preferred-name']['given-name']),
+                url=author.get('prism:url', ''))
+        
+        # get an affiliation of the author
+        new_affil = Affiliations(name=cur_affil['affiliation-name'],
+                            city=cur_affil['affiliation-city'],
+                            country=cur_affil['affiliation-country'],
+                            scopus_affil_id=cur_affil['affiliation-id'])
+
+        # search for the affiliation in the db
+        existing_affil = session.query(Affiliations).filter_by(
+                                scopus_affil_id=new_affil.scopus_affil_id).first()
+        if existing_affil:
+            # if the affiliation exists, get its ID
+            affil_id = existing_affil.id
+        else:
+            # if the affiliation not exists, insert it to the db
+            session.add(new_affil)
+            session.commit()
+            affil_id = new_affil.id
 
         author = session.query(Authors).filter_by(
                 given_name=new_author.given_name,
                 surname=new_author.surname).first()
         if not author:
+            new_author.affil_id = affil_id  # assign affiliation ID to the author
             new_author.scopus_abstracts_collection.append(abstract)
             abstract.scopus_authors_collection.append(new_author)
             print('new author, {}, added.'.format(
-                            new_author.indexed_name.encode('utf8')))
+                            new_author.preferred_name.encode('utf8')))
             session.add(new_author)
         else:
+            if affil_id != author.affil_id:
+                author.affil_id = affil_id  # update an affiliation
+
             author.scopus_abstracts_collection.append(abstract)
             abstract.scopus_authors_collection.append(author)
             print('new article added to {}'.format(
-                            author.indexed_name.encode('utf8')))
+                            author.preferred_name.encode('utf8')))
             session.add(author)
-    #session.commit()
-    session.flush()
-
-
-def add_affil(affils):
-    '''
-    argument:
-        affils = a list of affiliation elements
-    '''
-
-    for element in affils:
-        for k, v in element.iteritems():
-            print(k, v[0].text)
-
 
 def update(year):
     query = 'AFFILORG("faculty of medical technology" "mahidol university")' \
                 'AND PUBYEAR IS %s' % year
 
-    params = {'apiKey': API_KEY, 'query': query}
+    params = {'apiKey': API_KEY, 'query': query, 'httpAccept': 'application/json'}
     apikey = {'apiKey' : API_KEY}
     url = 'http://api.elsevier.com/content/search/scopus'
 
-    r = requests.get(url, params=params)
+    r = requests.get(url, params=params).json()
 
-    total_results = int(r.json()['search-results']['opensearch:totalResults'])
+    total_results = int(r['search-results']['opensearch:totalResults'])
     page = 0
     article_no = 0
 
@@ -140,40 +115,40 @@ def update(year):
         params = {'apiKey': API_KEY,
                     'query': query,
                     'start': start,
+                    'httpAccept': 'application/json',
+                    'view': 'COMPLETE',
                     'count': ITEM_PER_PAGE}
 
-        articles = requests.get(url, params=params).json()['search-results']
-        for n, entry in enumerate(articles['entry'], start=1):
+        articles = requests.get(url, params=params).json()['search-results']['entry']
+        for n, entry in enumerate(articles, start=1):
             article_no += 1
 
             print >> sys.stderr, '%d) %s..%s' \
                     % (article_no, entry['dc:title'][:80], entry['dc:creator'][:30])
 
-            article = requests.get(entry['prism:url'],
-                                    params={'apiKey': API_KEY,})
-            content = et.fromstring(article.text.encode('utf-8'))
-            pub_data = defaultdict(list)
-            for elem in list(content):
-                try:
-                    elem_tag = parse_tag(elem)
-                except:
-                    print(elem.tag, elem.attrib, elem.text)
-                    continue
-                else:
-                    data = defaultdict(list)
-                    for e in list(elem):
-                        tag = parse_tag(e)
-                        data[tag].append(e)
-                    pub_data[elem_tag].append(data)
-
-            # add_affil(pub_data.get('affiliation'))
-            abstract = add_abstract(pub_data.get('coredata', None))
-            if abstract:
-                add_author(pub_data.get('authors'), abstract)
-
-            session.commit()
+            new_abstract = Abstracts(url=entry.get('prism:url', ''),
+                                    title=entry.get('dc:title', ''),
+                                    identifier=entry.get('dc:identifier', ''),
+                                    pii=entry.get('pii', ''),
+                                    doi=entry.get('prism:doi', ''),
+                                    eid=entry.get('eid', ''),
+                                    publication_name=entry.get('prism:publicationName', ''),
+                                    citedby_count=entry.get('citedby-count', ''),
+                                    cover_date=entry.get('prism:coverDate', ''),
+                                    description=entry.get('dc:description', '')
+                                    )
+            existing_abstract = session.query(Abstracts).filter_by(
+                                    doi=entry.get('prism:doi')).first()
+            if existing_abstract:
+                print('Article already in the database.')
+            else:
+                print('New article loaded.')
+                session.add(new_abstract)
+                session.flush()
+                add_author(entry.get('author'), new_abstract)
+    session.commit()
 
 
 if __name__=='__main__':
     year = int(sys.argv[1])
-    update(year)
+    entry = update(year)
