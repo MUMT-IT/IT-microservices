@@ -2,15 +2,29 @@
 
 '''
 
+import os
 import sys
 import requests
 import time
 import xml.etree.ElementTree as et
 import re
 from datetime import datetime
-from app import db
-from app.research.models import ScopusAbstract, ScopusAuthor
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
+
+engine = create_engine('postgresql+psycopg2://likit@localhost/research_dev')
+Base = automap_base()
+Base.prepare(engine, reflect=True)
+Session = sessionmaker(bind=engine)
+session = Session()
+#print(Base.classes.keys())
+
+Abstracts = Base.classes.scopus_abstracts
+Authors = Base.classes.scopus_authors
+Affiliations = Base.classes.scopus_affiliations
 
 API_KEY = '871232b0f825c9b5f38f8833dc0d8691'
 
@@ -31,7 +45,7 @@ def add_abstract(coredata):
         for k, v in i.iteritems():
             d[k] = v[0].text
 
-    new_abstract = ScopusAbstract(url=d.get('url', ''),
+    new_abstract = Abstracts(url=d.get('url', ''),
                             title=d.get('title', ''),
                             identifier=d.get('identifier', ''),
                             pii=d.get('pii', ''),
@@ -42,14 +56,15 @@ def add_abstract(coredata):
                             cover_date=d.get('coverDate', ''),
                             description=d.get('description', '')
                             )
-    abstract = ScopusAbstract.query.filter_by(doi=d.get('doi')).first()
+    abstract = session.query(Abstracts).filter_by(doi=d.get('doi')).first()
     if abstract:
         print('Article already in the database.')
         return None
     else:
         print('New article.')
-        db.session.add(new_abstract)
-        db.session.commit()
+        session.add(new_abstract)
+        #session.commit()
+        session.flush()
         return new_abstract
 
 
@@ -63,27 +78,30 @@ def add_author(authors, abstract):
             tag = parse_tag(item)
             d[tag] = item.text
 
-        new_author = ScopusAuthor(initials=d.get('initials', ''),
+        new_author = Authors(initials=d.get('initials', ''),
                 indexed_name=d.get('indexed-name', ''),
                 surname=d.get('surname', ''),
                 given_name=d.get('given-name', ''),
                 preferred_name=d.get('preferred-name', ''),
                 url=d.get('author-url', ''))
 
-        author = ScopusAuthor.query.filter_by(
+        author = session.query(Authors).filter_by(
                 given_name=new_author.given_name,
                 surname=new_author.surname).first()
         if not author:
-            new_author.abstracts.append(abstract)
+            new_author.scopus_abstracts_collection.append(abstract)
+            abstract.scopus_authors_collection.append(new_author)
             print('new author, {}, added.'.format(
                             new_author.indexed_name.encode('utf8')))
-            db.session.add(new_author)
+            session.add(new_author)
         else:
-            author.abstracts.append(abstract)
+            author.scopus_abstracts_collection.append(abstract)
+            abstract.scopus_authors_collection.append(author)
             print('new article added to {}'.format(
                             author.indexed_name.encode('utf8')))
-            db.session.add(author)
-    db.session.commit()
+            session.add(author)
+    #session.commit()
+    session.flush()
 
 
 def add_affil(affils):
@@ -152,3 +170,10 @@ def update(year):
             abstract = add_abstract(pub_data.get('coredata', None))
             if abstract:
                 add_author(pub_data.get('authors'), abstract)
+
+            session.commit()
+
+
+if __name__=='__main__':
+    year = int(sys.argv[1])
+    update(year)
