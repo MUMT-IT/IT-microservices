@@ -25,6 +25,13 @@ class Affiliation(db.Model):
     name_en = db.Column(db.String(80), nullable=False)
     head_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
 
+
+class AffiliationSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    name_th = fields.String(required=True)
+    name_en = fields.String(required=True)
+    head_id = fields.Integer()
+
 class EmployeeSchema(ma.Schema):
     id = fields.Integer(dump_only=True)
     first_th = fields.String(required=True)
