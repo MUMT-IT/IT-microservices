@@ -1,6 +1,6 @@
 from flask import jsonify, request
-from ..utils.drive import get_file_list
 from . import education_bp as education
+from .drive import get_file_list
 
 @education.route('/followup/')
 def followup():
