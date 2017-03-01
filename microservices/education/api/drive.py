@@ -39,9 +39,8 @@ def get_file_list(folder_id):
         fields="nextPageToken, files(id, name)").execute()
     items = results.get('files', [])
     if not items:
-        print('No files found.')
+        return {}
     else:
-        print('Files:')
         files = []
         for item in items:
             files.append({'id': item['id'], 'name': item['name']})
