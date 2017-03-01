@@ -48,8 +48,11 @@ def get_file_list(folder_id):
         print('No files found.')
     else:
         print('Files:')
+        files = []
         for item in items:
-            print('{0} ({1})'.format(item['name'], item['id']))
+            files.append({'id': item['id'], 'name': item['name']})
+            #print('{0} ({1})'.format(item['name'], item['id']))
+        return files
 
 if __name__=='__main__':
     folder_id = '0BxLCeg0VgIlYcEhodkxpTEpwTVE'
