@@ -2,6 +2,8 @@ import gspread
 import httplib2
 import numpy as np
 
+from collections import defaultdict
+
 from flask import jsonify, request, redirect, session
 from . import education_bp as education
 from .drive import get_file_list, get_credentials_from_file
@@ -11,7 +13,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 from flask_cors import cross_origin
 from main import db
 from models import (SurveyCategory, SurveyAnswer,
-                        SurveyWRSSummary, SurveyQuestion)
+                        SurveyWRSSummary, SurveyWRSTeachingSummary,
+                        SurveyQuestion)
 
 
 @education.route('/gdrive/files/')
@@ -127,6 +130,24 @@ def udpate_wrs():
             post_analysis = wks.col_values(22)[1:]
             post_leadership = wks.col_values(23)[1:]
             post_social_resp = wks.col_values(24)[1:]
+            learning_methods = ['lecture', 'lab', 'buzzgroup', 'casestudy',
+                                'discussion', 'roleplay', 'workgroup',
+                                'fieldtrip', 'community', 'pbl',
+                                'transformative', 'project', 'intern'
+                                ]
+            j = 0
+            teaching_wrs_results = {}
+            for i in range(35,113,6):
+                lm = learning_methods[j]
+                teaching_wrs_results[lm] = defaultdict(dict)
+                teaching_wrs_results[lm]['knowledge'] = wks.col_values(i)[1:]
+                teaching_wrs_results[lm]['prof_skill'] = wks.col_values(i+1)[1:]
+                teaching_wrs_results[lm]['creativity'] = wks.col_values(i+2)[1:]
+                teaching_wrs_results[lm]['analysis'] = wks.col_values(i+3)[1:]
+                teaching_wrs_results[lm]['leadership'] = wks.col_values(i+4)[1:]
+                teaching_wrs_results[lm]['socialresp'] = wks.col_values(i+5)[1:]
+                j += 1
+                
             i = 0
             while True:
                 if(prior_knowledge[i] == '' and prior_prof_skill[i] == '' and
@@ -147,13 +168,19 @@ def udpate_wrs():
             post_leadership = [int(d) for d in post_leadership[:i]]
             post_social_resp = [int(d) for d in post_social_resp[:i]]
 
+            for lm,res in teaching_wrs_results.iteritems():
+                for k,v in res.iteritems():
+                    #print('before ', len(teaching_wrs_results[lm][k]))
+                    teaching_wrs_results[lm][k] = [int(d) for d in v[:i] if d != '']
+                    #print('after ', len(teaching_wrs_results[lm][k]))
+
             prior = {
                 'knowledge': np.mean(prior_knowledge),
                 'prof_skill': np.mean(prior_prof_skill),
                 'creativity': np.mean(prior_creativity),
                 'analysis': np.mean(prior_analysis),
                 'leadership': np.mean(prior_leadership),
-                'socialrep': np.mean(prior_social_resp)
+                'socialresp': np.mean(prior_social_resp)
                 }
             post = {
                 'knowledge': np.mean(post_knowledge),
@@ -161,7 +188,7 @@ def udpate_wrs():
                 'creativity': np.mean(post_creativity),
                 'analysis': np.mean(post_analysis),
                 'leadership': np.mean(post_leadership),
-                'socialrep': np.mean(post_social_resp)
+                'socialresp': np.mean(post_social_resp)
             }
             for k,v in prior.iteritems():
                 a = SurveyWRSSummary(category_id=wrs_category.id,
@@ -171,12 +198,16 @@ def udpate_wrs():
                 a = SurveyWRSSummary(category_id=wrs_category.id,
                                 question=k, value=str(v), year=year, post=True)
                 db.session.add(a)
+            for lm,res in teaching_wrs_results.iteritems():
+                for k,v in res.iteritems():
+                    a = SurveyWRSTeachingSummary(category_id=wrs_category.id,
+                            question=k, method=lm, year=year,
+                            value=str(np.mean(teaching_wrs_results[lm][k])))
+                    db.session.add(a)
             db.session.commit()
-    #return jsonify(records)
     return jsonify({'status': 'success'}), 200
 
-
-@education.route('/wrs/results/')
+@education.route('/wrs/results/development/')
 @cross_origin()
 def get_wrs_results():
     wrs_category = \
@@ -191,6 +222,35 @@ def get_wrs_results():
             res.append({'question': rec.question, 'value': rec.value, 'post': rec.post})
         d = {'year': year}
         d['results'] = res
+        data.append(d)
+
+    return jsonify({'data': data})
+
+
+@education.route('/wrs/results/teaching/')
+@cross_origin()
+def get_wrs_teaching_results():
+    wrs_category = \
+        SurveyCategory.query.filter_by(name="wellrounded scholar").first()
+    learning_methods = ['lecture', 'lab', 'buzzgroup', 'casestudy',
+                        'discussion', 'roleplay', 'workgroup',
+                        'fieldtrip', 'community', 'pbl',
+                        'transformative', 'project', 'intern'
+                        ]
+    data = []
+    for item in SurveyWRSTeachingSummary.query.with_entities(SurveyWRSTeachingSummary.year)\
+                                .filter_by(category_id=wrs_category.id)\
+                                .order_by(SurveyWRSTeachingSummary.year).distinct():
+        year = item[0]
+        d = {'year': year, 'results': []}
+        for lm in learning_methods:
+            dd = {'method': lm}
+            res = []
+            for rec in SurveyWRSTeachingSummary.query\
+                    .filter_by(category_id=wrs_category.id, year=year, method=lm):
+                res.append({'question': rec.question, 'value': rec.value})
+            dd['results'] = sorted(res, key=lambda x: x['question'])
+            d['results'].append(dd)
         data.append(d)
 
     return jsonify({'data': data})

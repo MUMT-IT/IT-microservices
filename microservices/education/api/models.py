@@ -31,3 +31,12 @@ class SurveyWRSSummary(db.Model):
     question = db.Column(db.String(128), nullable=False)
     value = db.Column(db.String(16), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('survey_categories.id'))
+
+class SurveyWRSTeachingSummary(db.Model):
+    __tablename__ = 'survey_wrs_teaching_summary'
+    id = db.Column(db.Integer, primary_key=True)
+    year = db.Column(db.String(4), nullable=False)
+    method = db.Column(db.String(64))
+    question = db.Column(db.String(128), nullable=False)
+    value = db.Column(db.String(16), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('survey_categories.id'))
