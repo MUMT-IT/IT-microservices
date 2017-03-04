@@ -29,7 +29,7 @@ Affiliations = Base.classes.scopus_affiliations
 
 API_KEY = '871232b0f825c9b5f38f8833dc0d8691'
 
-ITEM_PER_PAGE = 10
+ITEM_PER_PAGE = 25
 SLEEPTIME = 5
 
 def add_author(authors, abstract):
@@ -43,20 +43,21 @@ def add_author(authors, abstract):
                     'httpAccept': 'application/json'}
         author = requests.get(url, params=params).json()
         author = author['search-results']['entry'][0]
-        cur_affil = author['affiliation-current']
+        cur_affil = author.get('affiliation-current', {})
+        preferred_name=author['preferred-name']['surname']+ ' ' +\
+                                    author['preferred-name']['given-name']
 
         new_author = Authors(initials=author['preferred-name'].get('initials', ''),
                 surname=author['preferred-name'].get('surname', ''),
                 given_name=author['preferred-name'].get('given-name', ''),
-                preferred_name='{} {}'.format(author['preferred-name']['surname'],
-                                    author['preferred-name']['given-name']),
+                preferred_name=preferred_name,
                 url=author.get('prism:url', ''))
         
         # get an affiliation of the author
-        new_affil = Affiliations(name=cur_affil['affiliation-name'],
-                            city=cur_affil['affiliation-city'],
-                            country=cur_affil['affiliation-country'],
-                            scopus_affil_id=cur_affil['affiliation-id'])
+        new_affil = Affiliations(name=cur_affil.get('affiliation-name', ''),
+                            city=cur_affil.get('affiliation-city', ''),
+                            country=cur_affil.get('affiliation-country', ''),
+                            scopus_affil_id=cur_affil.get('affiliation-id', ''))
 
         # search for the affiliation in the db
         existing_affil = session.query(Affiliations).filter_by(
@@ -89,6 +90,7 @@ def add_author(authors, abstract):
             print('new article added to {}'.format(
                             author.preferred_name.encode('utf8')))
             session.add(author)
+        session.commit()
 
 def update(year):
     query = 'AFFILORG("faculty of medical technology" "mahidol university")' \
