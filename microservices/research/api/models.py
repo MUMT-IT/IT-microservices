@@ -1,6 +1,7 @@
 #! -*- coding: utf-8 -*-
 from datetime import datetime
 from main import db, ma
+from marshmallow import fields
 
 author_abstracts = db.Table('author_abstracts',
         db.Column('author_id', db.Integer,
@@ -44,10 +45,6 @@ class ScopusAuthor(db.Model):
     preferred_name = db.Column(db.UnicodeText())
     url = db.Column(db.Text())
     affiliation = db.relationship('ScopusAffiliation',
-                    backref=db.backref('authors', lazy='dynamic'))
-
-    abstracts = db.relationship('ScopusAbstract',
-                    secondary=author_abstracts,
                     backref=db.backref('authors', lazy='dynamic'))
 
     def __repr__(self):
@@ -100,6 +97,20 @@ class Funding(db.Model):
     name = db.Column(db.UnicodeText())
     year = db.Column(db.UnicodeText())
     amount = db.Column(db.Float())
-    abstracts = db.relationship('ScopusAbstract',
-                    secondary=funding_abstracts,
-                    backref=db.backref('fundings', lazy='dynamic'))
+
+class AuthorSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    given_name = fields.String(required=True)
+    surname = fields.String(required=True)
+    abstracts = fields.Nested('AbstractSchema', many=True)
+    url = ma.URLFor('api.researcherresource', id='<id>', _external=True)
+
+
+class AbstractSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    title = fields.String(required=True)
+    description = fields.String(required=False)
+    doi = fields.String()
+    citedby_count = fields.Integer()
+    cover_date = fields.DateTime()
+    url = ma.URLFor('api.abstractresource', id='<id>', _external=True)

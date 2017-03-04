@@ -18,7 +18,7 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-    #from api import employee_bp
-    #app.register_blueprint(employee_bp, url_prefix='/api')
+    from api import research_bp
+    app.register_blueprint(research_bp, url_prefix='/api')
 
     return app
