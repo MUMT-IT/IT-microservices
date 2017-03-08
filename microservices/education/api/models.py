@@ -40,3 +40,20 @@ class SurveyWRSTeachingSummary(db.Model):
     question = db.Column(db.String(128), nullable=False)
     value = db.Column(db.String(16), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('survey_categories.id'))
+
+
+class AcademicProgram(db.Model):
+    __tablename__ = 'academic_programs'
+    id = db.Column(db.Integer, primary_key=True)
+    level = db.Column(db.String())
+    degree_title = db.Column(db.String(128))
+    degree_title_abbr = db.Column(db.String(32))
+    program_title = db.Column(db.String(128))
+    program_title_abbr = db.Column(db.String(32))
+
+class FollowUpSummary(db.Model):
+    __tablename__ = 'follow_up_summary'
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('academic_programs.id'))
+    post_grad_employment_rate = db.Column(db.Float())
+    survey_year = db.Column(db.Integer())
