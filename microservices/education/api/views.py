@@ -1,3 +1,4 @@
+# -*- coding:utf8 -*-
 import gspread
 import httplib2
 import numpy as np
@@ -14,7 +15,8 @@ from flask_cors import cross_origin
 from main import db
 from models import (SurveyCategory, SurveyAnswer,
                         SurveyWRSSummary, SurveyWRSTeachingSummary,
-                        SurveyQuestion)
+                        SurveyQuestion, FollowUpSummary,
+                        AcademicProgram)
 
 
 @education.route('/gdrive/files/')
@@ -32,46 +34,9 @@ def get_gdrive_file_list():
     else:
         files = []
         for item in items:
-            files.append({'id': item['id'], 'name': item['name'], 'parents': item['parents']})
+            files.append({'id': item['id'], 'name': item['name'], 'parents': item.get('parents', '')})
             #print('{0} ({1})'.format(item['name'], item['id']))
         return jsonify({'files': files})
-
-@education.route('/gdrive/followUp/update/')
-def update_followup():
-    '''Load data from follow up survey spreadsheet to DB'''
-    cred = get_credentials_from_file()  # get_credentials func cannot run inside flask this way
-    http = cred.authorize(httplib2.Http())
-    service = discovery.build('drive', 'v3', http=http)
-
-    folder_id = '0BxLCeg0VgIlYcEhodkxpTEpwTVE'
-    files = get_file_list(folder_id, cred)
-    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
-    scope = ['https://spreadsheets.google.com/feeds']
-    gc_credentials = ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
-    gc = gspread.authorize(gc_credentials)
-    for f in files:
-        file_name, file_id = f['name'], f['id']
-        try:
-            wks = gc.open_by_key(file_id).sheet1
-        except:
-            batch = service.new_batch_http_request()
-            user_permission = {
-                'type': 'user',
-                'role': 'owner',
-                'emailAddress': 'academic-affairs-mumt@academic-affairs.iam.gserviceaccount.com'
-                }
-            batch.add(service.permissions().create(
-                fileId=file_id,
-                body=user_permission,
-                fields='id',
-            ))
-            batch.execute()
-            wks = gc.open_by_key(file_id).sheet1
-        else:
-            row = 1
-            headings = ', '.join(wks.row_values(row))
-        break
-    return jsonify({'status': 'success', 'headers': headings}), 200
 
 
 @education.route('/gdrive/wrs/update/')
@@ -253,3 +218,116 @@ def get_wrs_teaching_results():
         data.append(d)
 
     return jsonify({'data': data})
+
+
+@education.route('/gdrive/followup/update/')
+def udpate_followup():
+    '''Load data from follow up spreadsheet to DB'''
+    cred = get_credentials_from_file()  # get_credentials func cannot run 
+                                        # inside flask this way
+    http = cred.authorize(httplib2.Http())
+    service = discovery.build('drive', 'v3', http=http)
+
+    folder_id = '0BxLCeg0VgIlYcEhodkxpTEpwTVE'
+    files = get_file_list(folder_id, cred)
+    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
+    scope = ['https://spreadsheets.google.com/feeds']
+    gc_credentials = \
+            ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
+    gc = gspread.authorize(gc_credentials)
+    records = {}
+    for f in files:
+        file_name, file_id = f['name'], f['id']
+        program_abbr, year = file_name.split('.')[0].split('_')
+        program = AcademicProgram.query.filter_by(program_title_abbr=program_abbr.lower()).first()
+        print(program.id, program_abbr)
+        if FollowUpSummary.query.filter_by(survey_year=year).filter_by(program_id=program.id).first():
+            print('Data of year {} already exists'.format(year))
+            continue
+        print('Loading data from file: {} {}'.format(file_name, file_id))
+        try:
+            wks = gc.open_by_key(file_id).sheet1
+        except:
+            print('Error!')
+            continue
+        else:
+            col_no = 10  # employment status for MT
+            if program.id == 2 and year == '2557':
+                    col_no = 6  # employment status for RT
+            empl_data = wks.col_values(col_no)[1:]
+            employed = [e for e in empl_data if e.startswith(u'ได้งานทำ')
+                            or e.startswith(u'ทำงาน')
+                            or e.startswith(u'ศึกษาต่อ')
+                            or e.startswith(u'ทำงานแล้ว')
+                            or e.startswith(u'กำลังศึกษา')]  # what a hell
+
+            empl_rate = len(employed) / float(len([d for d in empl_data if d != '']))
+            print(program_abbr, year, empl_rate, len(employed))
+            a = FollowUpSummary(program_id=program.id,
+                    post_grad_employment_rate=empl_rate,survey_year=year)
+            db.session.add(a)
+            db.session.commit()
+    return jsonify({'status': 'success'})
+
+
+@education.route('/followup/results/')
+@cross_origin()
+def get_followup_result():
+    query = db.session.query(FollowUpSummary.survey_year,
+                                FollowUpSummary.post_grad_employment_rate,
+                                AcademicProgram.program_title_abbr)
+    query = query.join(AcademicProgram)
+    results = query.all()
+    d = []
+    for r in results:
+        d.append({
+            'year': r[0],
+            'rate': r[1],
+            'program': r[2]
+        })
+    return jsonify(d)
+
+
+@education.route('/gdrive/evaluation/update/')
+def udpate_evaluation():
+    '''Load data from evaluation spreadsheet to DB'''
+    cred = get_credentials_from_file()  # get_credentials func cannot run 
+                                        # inside flask this way
+    http = cred.authorize(httplib2.Http())
+    service = discovery.build('drive', 'v3', http=http)
+
+    #folder_id = '0B45WRw4HPnk_bWhadnNxcDdQWm8'
+    #folder_id = '0B22x_gLSu9r4Z3UzUXBhRHByLWs'
+    folder_id = '0B45WRw4HPnk_dXBsOE9KTkpEVU0'
+    files = get_file_list(folder_id, cred)
+    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
+    scope = ['https://spreadsheets.google.com/feeds']
+    gc_credentials = \
+            ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
+    gc = gspread.authorize(gc_credentials)
+    records = {}
+    for f in files:
+        file_name, file_id = f['name'], f['id']
+        print(file_name.split('.'))
+        program_abbr, year = file_name.split('.')[0].split('_')
+        '''
+        if FollowUpSummary.query.filter_by(survey_year=str(year)).first():
+            print('Data of year {} already exists'.format(year))
+            continue
+        print('Loading data from file: {} {}'.format(file_name, file_id))
+        '''
+        wks = gc.open_by_key(file_id).sheet1
+        empl_data = wks.col_values(8)[1:]
+        print(empl_data)
+        employed = [e for e in empl_data if e == u'ทำงาน' or e == u'ศึกษาต่อ']
+        empl_rate = len(employed) / float(len(empl_data))
+        if program_abbr == 'MT':
+            program_id = 1
+        elif program_abbr == 'RT':
+            program_id = 2
+        else:
+            raise ValueError
+        #a = FollowUpSummary(program_id=program_id,post_grad_employment_rate=empl_rate,survey_year=year)
+        #db.session.add(a)
+        #db.session.commit()
+    return jsonify({'status': 'success'})
