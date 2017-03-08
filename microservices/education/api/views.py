@@ -57,7 +57,7 @@ def update_followup():
             batch = service.new_batch_http_request()
             user_permission = {
                 'type': 'user',
-                'role': 'writer',
+                'role': 'owner',
                 'emailAddress': 'academic-affairs-mumt@academic-affairs.iam.gserviceaccount.com'
                 }
             batch.add(service.permissions().create(
@@ -69,10 +69,9 @@ def update_followup():
             wks = gc.open_by_key(file_id).sheet1
         else:
             row = 1
-            headings = wks.row_values(row)
-            print(headings)
+            headings = ', '.join(wks.row_values(row))
         break
-    return 200
+    return jsonify({'status': 'success', 'headers': headings}), 200
 
 
 @education.route('/gdrive/wrs/update/')
@@ -104,7 +103,7 @@ def udpate_wrs():
             batch = service.new_batch_http_request()
             user_permission = {
                 'type': 'user',
-                'role': 'writer',
+                'role': 'onwer',
                 'emailAddress': 'academic-affairs-mumt@academic-affairs.iam.gserviceaccount.com'
                 }
             batch.add(service.permissions().create(
