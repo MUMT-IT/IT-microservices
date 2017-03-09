@@ -54,6 +54,23 @@ class AcademicProgram(db.Model):
 class FollowUpSummary(db.Model):
     __tablename__ = 'follow_up_summary'
     id = db.Column(db.Integer, primary_key=True)
-    program_id = db.Column(db.Integer, db.ForeignKey('academic_programs.id'))
+    program_id = db.Column(db.Integer,
+                        db.ForeignKey('academic_programs.id'))
     post_grad_employment_rate = db.Column(db.Float())
     survey_year = db.Column(db.Integer())
+
+
+class EvaluationSummary(db.Model):
+    __tablename__ = 'evaluation_summary'
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer,
+                        db.ForeignKey('academic_programs.id'))
+    survey_year = db.Column(db.Integer())
+    avg_analytics = db.Column(db.Float())
+    avg_professional = db.Column(db.Float())
+    avg_thinking = db.Column(db.Float())
+    avg_relation = db.Column(db.Float())
+    avg_knowledge = db.Column(db.Float())
+    avg_morals = db.Column(db.Float())
+    avg_identity = db.Column(db.Float())
+    avg_overall = db.Column(db.Float())

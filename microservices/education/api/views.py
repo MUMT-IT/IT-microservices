@@ -16,7 +16,7 @@ from main import db
 from models import (SurveyCategory, SurveyAnswer,
                         SurveyWRSSummary, SurveyWRSTeachingSummary,
                         SurveyQuestion, FollowUpSummary,
-                        AcademicProgram)
+                        AcademicProgram, EvaluationSummary)
 
 
 @education.route('/gdrive/files/')
@@ -296,9 +296,7 @@ def udpate_evaluation():
     http = cred.authorize(httplib2.Http())
     service = discovery.build('drive', 'v3', http=http)
 
-    #folder_id = '0B45WRw4HPnk_bWhadnNxcDdQWm8'
-    #folder_id = '0B22x_gLSu9r4Z3UzUXBhRHByLWs'
-    folder_id = '0B45WRw4HPnk_dXBsOE9KTkpEVU0'
+    folder_id = '0B45WRw4HPnk_bWhadnNxcDdQWm8'  # evaluation folder
     files = get_file_list(folder_id, cred)
     service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
     scope = ['https://spreadsheets.google.com/feeds']
@@ -307,27 +305,138 @@ def udpate_evaluation():
     gc = gspread.authorize(gc_credentials)
     records = {}
     for f in files:
+        print(f['name'])
         file_name, file_id = f['name'], f['id']
-        print(file_name.split('.'))
-        program_abbr, year = file_name.split('.')[0].split('_')
-        '''
-        if FollowUpSummary.query.filter_by(survey_year=str(year)).first():
-            print('Data of year {} already exists'.format(year))
+        try:
+            program_abbr, year = file_name.split('.')[0].split('_')
+        except:
+            print('Invalid filename. Skipped.')
             continue
         print('Loading data from file: {} {}'.format(file_name, file_id))
-        '''
-        wks = gc.open_by_key(file_id).sheet1
-        empl_data = wks.col_values(8)[1:]
-        print(empl_data)
-        employed = [e for e in empl_data if e == u'ทำงาน' or e == u'ศึกษาต่อ']
-        empl_rate = len(employed) / float(len(empl_data))
-        if program_abbr == 'MT':
-            program_id = 1
-        elif program_abbr == 'RT':
-            program_id = 2
+        program = AcademicProgram.query.filter_by(program_title_abbr=program_abbr.lower())\
+                                        .filter_by(level='undergraduate').first()
+        e = EvaluationSummary.query.filter_by(survey_year=year)\
+                                        .filter_by(program_id=program.id).first()
+        if e:
+            print('Data of the year {} already exists.'.format(year))
+            continue
+        try:
+            wks = gc.open_by_key(file_id).sheet1
+        except:
+            print('Error!')
+            continue
         else:
-            raise ValueError
-        #a = FollowUpSummary(program_id=program_id,post_grad_employment_rate=empl_rate,survey_year=year)
-        #db.session.add(a)
-        #db.session.commit()
+            morals = []
+            for i in range(22,29):
+                morals.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_morals_list = []
+            for i in range(len(morals)):
+                avg = np.mean(morals[i])
+                avg_morals_list.append(avg)
+            avg_morals = np.mean(avg_morals_list)
+
+            knowledge = []
+            for i in range(29, 36):
+                knowledge.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_knowledge_list = []
+            for i in range(len(knowledge)):
+                avg = np.mean(knowledge[i])
+                avg_knowledge_list.append(avg)
+            avg_knowledge = np.mean(avg_knowledge_list)
+
+            thinking = []
+            for i in range(36, 40):
+                thinking.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_thinking_list = []
+            for i in range(len(thinking)):
+                avg = np.mean(thinking[i])
+                avg_thinking_list.append(avg)
+            avg_thinking = np.mean(avg_thinking_list)
+
+            relation = []
+            for i in range(40, 47):
+                relation.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_relation_list = []
+            for i in range(len(relation)):
+                avg = np.mean(relation[i])
+                avg_relation_list.append(avg)
+            avg_relation = np.mean(avg_relation_list)
+
+            analytics = []
+            for i in range(47, 52):
+                analytics.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_analytics_list = []
+            for i in range(len(analytics)):
+                avg = np.mean(analytics[i])
+                avg_analytics_list.append(avg)
+            avg_analytics = np.mean(avg_analytics_list)
+
+            professional = []
+            for i in range(52, 55):
+                professional.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_professional_list = []
+            for i in range(len(professional)):
+                avg = np.mean(professional[i])
+                avg_professional_list.append(avg)
+            avg_professional = np.mean(avg_professional_list)
+
+            identity = []
+            for i in range(55, 58):
+                identity.append([int(d) for d in wks.col_values(i)[1:] if d != ''])
+            avg_identity_list = []
+            for i in range(len(identity)):
+                avg = np.mean(identity[i])
+                avg_identity_list.append(avg)
+            avg_identity = np.mean(avg_identity_list)
+
+            overall = [int(d) for d in wks.col_values(58)[1:] if d != '']
+            avg_overall = np.mean(overall)
+
+            a = EvaluationSummary(survey_year=year,
+                                    avg_morals=avg_morals,
+                                    avg_thinking=avg_thinking,
+                                    avg_relation=avg_relation,
+                                    avg_professional=avg_professional,
+                                    avg_analytics=avg_analytics,
+                                    avg_identity=avg_identity,
+                                    avg_knowledge=avg_knowledge,
+                                    avg_overall=avg_overall,
+                                    program_id=program.id)
+            db.session.add(a)
+            db.session.commit()
     return jsonify({'status': 'success'})
+
+
+@education.route('/evaluation/results/')
+@cross_origin()
+def get_evaluation_result():
+    query = db.session.query(EvaluationSummary.survey_year,
+                                EvaluationSummary.avg_analytics,
+                                EvaluationSummary.avg_identity,
+                                EvaluationSummary.avg_knowledge,
+                                EvaluationSummary.avg_morals,
+                                EvaluationSummary.avg_professional,
+                                EvaluationSummary.avg_relation,
+                                EvaluationSummary.avg_thinking,
+                                EvaluationSummary.avg_overall,
+                                AcademicProgram.level,
+                                AcademicProgram.program_title_abbr,
+                                )
+    query = query.join(AcademicProgram)
+    results = query.all()
+    d = []
+    for res in results:
+        r = {'year': res[0],
+                'program': res[-1].upper(),
+                'level': res[-2],
+                'avg_analytics': res[1],
+                'avg_identity': res[2],
+                'avg_knowledge': res[3],
+                'avg_morals': res[4],
+                'avg_professional': res[5],
+                'avg_relation': res[6],
+                'avg_thinking': res[7],
+                'avg_overall': res[8]
+        }
+        d.append(r)
+    return jsonify(d)
