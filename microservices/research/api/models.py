@@ -76,6 +76,15 @@ class ScopusAbstract(db.Model):
         return "<ScopusAbstract title=%s, doi=%s>" % \
                                 (self.title[:20], self.doi)
 
+class ScopusSubjArea(db.Model):
+    __tablename__ = 'scopus_subj_areas'
+    id = db.Column(db.Integer(), primary_key=True)
+    affil_abbr = db.Column(db.String(32))
+    year = db.Column(db.String(8))
+    area = db.Column(db.String(8))
+    articles = db.Column(db.Integer)
+    citations = db.Column(db.Integer)
+    
 
 # class ScopusArea(db.Model):
 #     __tablename__ = 'scopus_areas'
