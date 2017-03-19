@@ -125,7 +125,7 @@ def udpate_wrs():
             prior_analysis = [int(d) for d in prior_analysis[:i]]
             prior_leadership = [int(d) for d in prior_leadership[:i]]
             prior_social_resp = [int(d) for d in prior_social_resp[:i]]
-            post_knowledge = [int(d) for d in prior_knowledge[:i]]
+            post_knowledge = [int(d) for d in post_knowledge[:i]]
             post_prof_skill = [int(d) for d in post_prof_skill[:i]]
             post_creativity = [int(d) for d in post_creativity[:i]]
             post_analysis = [int(d) for d in post_analysis[:i]]
@@ -251,9 +251,9 @@ def udpate_followup():
             print('Error!')
             continue
         else:
-            col_no = 10  # employment status for MT
+            col_no = 10  # employment status for MT from 2558 onwards
             if program.id == 2 and year == '2557':
-                    col_no = 6  # employment status for RT
+                col_no = 6  # employment status for RT
             empl_data = wks.col_values(col_no)[1:]
             employed = [e for e in empl_data if e.startswith(u'ได้งานทำ')
                             or e.startswith(u'ทำงาน')
