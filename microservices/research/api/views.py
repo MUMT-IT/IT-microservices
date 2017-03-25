@@ -6,7 +6,7 @@ from models import ScopusAbstract, ScopusSubjArea
 from sqlalchemy import and_
 from itertools import groupby
 
-@research.route('/abstracts/')
+@research.route('/abstracts/numbers')
 @cross_origin()
 def get_abstracts():
     all_abstracts = {}
@@ -35,15 +35,11 @@ def get_abstracts():
 
     return jsonify({'articles': d, 'citations': c})
     
-@research.route('/abstracts/<int:year>')
+@research.route('/abstracts/list')
 @cross_origin()
-def get_abstracts_by_year(year):
-    start_date = '%d-01-01' % year
-    end_date = '%d-12-31' % year
-    abstracts = ScopusAbstract.query.filter(and_(ScopusAbstract.cover_date>=start_date,
-                                                    ScopusAbstract.cover_date<=end_date))
+def get_abstracts_by_year():
     d = []
-    for abs in abstracts:
+    for abs in db.session.query(ScopusAbstract):
         authors = [] 
         for au in abs.authors:
             authors.append({'name': au.preferred_name, 'affil': au.affiliation.name})
