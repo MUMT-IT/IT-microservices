@@ -16,6 +16,7 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
 
+#engine = create_engine('postgresql+psycopg2://likit@localhost/research_dev')
 engine = create_engine('postgresql+psycopg2://likit@localhost/research_dev')
 Base = automap_base()
 Base.prepare(engine, reflect=True)
@@ -142,7 +143,9 @@ def update(year):
             existing_abstract = session.query(Abstracts).filter_by(
                                     doi=entry.get('prism:doi')).first()
             if existing_abstract:
-                print('Article already in the database.')
+                print('Article already in the database. Updating number of citations..')
+                existing_abstract.citedby_count = \
+                        entry.get('citedby_count', existing_abstract.citedby_count)
             else:
                 print('New article loaded.')
                 session.add(new_abstract)
