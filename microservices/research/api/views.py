@@ -6,6 +6,7 @@ from models import ScopusAbstract, ScopusSubjArea
 from sqlalchemy import and_
 from itertools import groupby
 
+
 @research.route('/abstracts/numbers')
 @cross_origin()
 def get_abstracts():
@@ -34,7 +35,8 @@ def get_abstracts():
     c = sorted(c, key=lambda x: x['year'])
 
     return jsonify({'articles': d, 'citations': c})
-    
+
+
 @research.route('/abstracts/list')
 @cross_origin()
 def get_abstracts_by_year():
