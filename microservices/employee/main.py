@@ -1,20 +1,18 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
+from flask_pymongo import PyMongo
+from flask_mongoengine import MongoEngine
 
-db = SQLAlchemy()
-ma = Marshmallow()
+mongo = PyMongo()
+me = MongoEngine()
 
 
 def create_app():
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = \
-        'postgresql+psycopg2://likit@localhost/employees'
+    app.config['MONGO_DBNAME'] = 'employees'
+    app.config['MONGODB_DB'] = 'employees'
 
-    ma.init_app(app)
-    db.init_app(app)
-    with app.app_context():
-        db.create_all()
+    me.init_app(app)
+    mongo.init_app(app)
 
     from api import employee_bp
     app.register_blueprint(employee_bp, url_prefix='/api')

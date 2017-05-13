@@ -1,47 +1,35 @@
-from main import db, ma
-from marshmallow import fields
-
-class Employee(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    first_th = db.Column(db.String(80), nullable=False)
-    first_en = db.Column(db.String(80), nullable=False)
-    last_th = db.Column(db.String(80), nullable=False)
-    last_en = db.Column(db.String(80), nullable=False)
-    date_of_birth = db.Column(db.DateTime, nullable=False)
-    employed_date = db.Column(db.DateTime, nullable=True)
-    affiliation_id = db.Column(db.Integer,
-                        db.ForeignKey('affiliation.id'), nullable=False)
-    affiliation = db.relationship('Affiliation',
-                        backref=db.backref('members', lazy='dynamic'),
-                        foreign_keys=[affiliation_id])
-    office_id = db.Column(db.Integer, nullable=True)
-    email = db.Column(db.String(40))
-    license_plate = db.Column(db.String(40))
-    cellphone = db.Column(db.String(16))
-
-class Affiliation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name_th = db.Column(db.String(80), nullable=False)
-    name_en = db.Column(db.String(80), nullable=False)
-    head_id = db.Column(db.Integer, db.ForeignKey('employee.id'))
+from main import me
 
 
-class AffiliationSchema(ma.Schema):
-    id = fields.Integer(dump_only=True)
-    name_th = fields.String(required=True)
-    name_en = fields.String(required=True)
-    head_id = fields.Integer()
+class EmployeeAffiliation(me.Document):
+    name_th = me.StringField()
+    name_en = me.StringField()
+    # meta = {'collection': 'empl_affil'}  # to manually set a collection name
 
-class EmployeeSchema(ma.Schema):
-    id = fields.Integer(dump_only=True)
-    first_th = fields.String(required=True)
-    first_en = fields.String(required=True)
-    last_th = fields.String(required=True)
-    last_en = fields.String(required=True)
-    date_of_birth = fields.DateTime()
-    employed_date = fields.DateTime()
-    affiliation_id = fields.Integer()
-    office_id = fields.Integer()
-    email = fields.String()
-    license_plate = fields.String()
-    cellphone = fields.String()
+
+class Contact(me.EmbeddedDocument):
+    building_name_th = me.StringField()
+    building_name_en = me.StringField()
+    building_campus_th = me.StringField()
+    building_campus_en = me.StringField()
+    building_address = me.StringField()
+    office_number = me.StringField()
+    phone_number = me.ListField(me.StringField())
+    cellphone = me.StringField()
+    email = me.EmailField(required=True)
+
+
+class Employee(me.Document):
+    first_name_th = me.StringField(max_length=60)
+    last_name_th = me.StringField(max_length=80)
+    first_name_en = me.StringField(max_length=60)
+    last_name_en = me.StringField(max_length=80)
+    dob = me.DateTimeField()
+    employed_date = me.DateTimeField()
+    affl_id = me.ReferenceField(EmployeeAffiliation)
+    affl_name_en = me.StringField()
+    affl_name_th = me.StringField()
+    contact = me.EmbeddedDocumentField(Contact)
+
+    meta = {'allow_inheritance': True}
+
