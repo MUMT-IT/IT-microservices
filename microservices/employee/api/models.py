@@ -1,10 +1,11 @@
 from main import me
 
 
-class EmployeeAffiliation(me.Document):
+class Department(me.Document):
     name_th = me.StringField()
     name_en = me.StringField()
-    # meta = {'collection': 'empl_affil'}  # to manually set a collection name
+    head = me.ReferenceField('Employee')
+    meta = {'collection': 'departments'}
 
 
 class Contact(me.EmbeddedDocument):
@@ -19,6 +20,11 @@ class Contact(me.EmbeddedDocument):
     email = me.EmailField(required=True)
 
 
+class UpdateLog(me.EmbeddedDocument):
+    updated_by = me.ReferenceField('Employee')
+    updated_at = me.DateTimeField()
+
+
 class Employee(me.Document):
     first_name_th = me.StringField(max_length=60)
     last_name_th = me.StringField(max_length=80)
@@ -26,10 +32,13 @@ class Employee(me.Document):
     last_name_en = me.StringField(max_length=80)
     dob = me.DateTimeField()
     employed_date = me.DateTimeField()
-    affl_id = me.ReferenceField(EmployeeAffiliation)
+    affl_id = me.ReferenceField('Department')
     affl_name_en = me.StringField()
     affl_name_th = me.StringField()
     contact = me.EmbeddedDocumentField(Contact)
+    update_logs = me.ListField(me.EmbeddedDocumentField('UpdateLog'))
+    added_by = me.ReferenceField('Employee')
+    added_at = me.DateTimeField()
 
-    meta = {'allow_inheritance': True}
+    meta = {'allow_inheritance': True, 'collection': 'employees'}
 
