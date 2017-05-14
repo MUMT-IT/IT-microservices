@@ -1,8 +1,8 @@
 from main import db
-from flask import jsonify
+from flask import jsonify, request
 from . import research_bp as research
 from flask_cors import cross_origin
-from models import ScopusAbstract, ScopusSubjArea
+from models import ScopusAbstract, ScopusSubjArea, ScopusAuthor
 from sqlalchemy import and_
 from itertools import groupby
 
@@ -42,7 +42,7 @@ def get_abstracts():
 def get_abstracts_by_year():
     d = []
     for abs in db.session.query(ScopusAbstract):
-        authors = [] 
+        authors = []
         for au in abs.authors:
             authors.append({'name': au.preferred_name, 'affil': au.affiliation.name})
         d.append({'id': abs.id, 'title': abs.title, 'authors': authors,
@@ -71,3 +71,41 @@ def get_abstracts_by_subject_area():
                                         'articles': d.articles,
                                         'citations': d.citations})
     return jsonify(results)
+
+
+@research.route('/abstracts/authors/')
+@cross_origin()
+def get_abstracts_by_author():
+    given_name = request.args.get('first_name')
+    surname = request.args.get('last_name')
+    if given_name and surname:
+        author = ScopusAuthor.query.filter(and_(ScopusAuthor.surname==surname,
+                                    ScopusAuthor.given_name==given_name)).first()
+    elif surname:
+        author = ScopusAuthor.query.filter(ScopusAuthor.surname==surname).first()
+    elif given_name:
+        author = ScopusAuthor.query.filter(ScopusAuthor.given_name==given_name).first()
+    else:
+        return jsonify(data={'error': 'no first name and last name given.'})
+
+    if not author:
+        return jsonify(data={'error': 'author not found'})
+
+    papers = []
+    for p in author.abstracts:
+        abs_authors = []
+        for au in p.authors:
+            abs_authors.append({
+                'name': au.preferred_name, 'affil': au.affiliation.name
+            })
+        papers.append({
+            'id': p.id,
+            'title': p.title,
+            'doi': p.doi,
+            'publication_name': p.publication_name,
+            'citedby_count': p.citedby_count,
+            'cover_date': p.cover_date,
+            'authors': abs_authors,
+            'description': p.description
+        })
+    return jsonify(data=papers)
