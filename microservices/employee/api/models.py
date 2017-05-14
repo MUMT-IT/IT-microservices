@@ -43,3 +43,12 @@ class Employee(me.Document):
 
     meta = {'allow_inheritance': True, 'collection': 'employees'}
 
+
+class ResearchArticle(me.Document):
+    title = me.StringField(required=True)
+    authors = me.ListField(me.ReferenceField('Employee'))
+    status = me.StringField()
+    author_list = me.StringField()
+    cover_date = me.DateTimeField()
+    publisher = me.StringField()
+
