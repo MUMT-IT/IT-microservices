@@ -1,6 +1,7 @@
 from . import healthservice_blueprint as healthservice
 from sqlalchemy import create_engine, MetaData, Table, select, func
 from flask import jsonify
+from flask_cors import cross_origin
 
 engine = create_engine('postgresql+psycopg2://likit@localhost/healthdw_dev',
                         convert_unicode=True)
@@ -12,7 +13,8 @@ facts = Table('facts', metadata, autoload=True)
 dates = Table('dates', metadata, autoload=True)
 
 
-@healthservice.route('/')
+@healthservice.route('/customers/count/')
+@cross_origin(origin='*')
 def get_annual_customers():
     data = []
     for year in range(2007,2018):
