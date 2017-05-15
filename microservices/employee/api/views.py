@@ -51,7 +51,6 @@ class ProfileImageResource(Resource):
 
 
 class ResearchArticleResource(Resource):
-    @cross_origin
     def post(self):
         data = request.get_json()
         authors = data['authors'].split(',')
