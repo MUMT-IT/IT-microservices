@@ -86,10 +86,10 @@ def get_abstracts_by_author():
     elif given_name:
         author = ScopusAuthor.query.filter(ScopusAuthor.given_name==given_name).first()
     else:
-        return jsonify(data={'error': 'no first name and last name given.'})
+        return jsonify(data={})
 
     if not author:
-        return jsonify(data={'error': 'author not found'})
+        return jsonify(data={})
 
     papers = []
     for p in author.abstracts:
