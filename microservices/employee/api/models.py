@@ -15,7 +15,8 @@ class Contact(me.EmbeddedDocument):
     building_name_en = me.StringField()
     building_campus_th = me.StringField()
     building_campus_en = me.StringField()
-    building_address = me.StringField()
+    building_address_en = me.StringField()
+    building_address_th = me.StringField()
     office_number = me.StringField()
     phone_number = me.ListField(me.StringField())
     cellphone = me.StringField()
@@ -34,7 +35,7 @@ class Employee(me.Document):
     last_name_en = me.StringField(max_length=80)
     dob = me.DateTimeField()  # date of birth
     employed_date = me.DateTimeField()
-    department = me.ReferenceField('Department')  # dept. includes dept., unit, center and so on.
+    department = me.ListField(me.ReferenceField('Department'), default=[])  # dept. includes dept., unit, center and so on.
     photo = me.FileField()
     contact = me.EmbeddedDocumentField(Contact)
     update_logs = me.ListField(me.EmbeddedDocumentField('UpdateLog'))
@@ -42,6 +43,11 @@ class Employee(me.Document):
     added_at = me.DateTimeField(default=datetime.datetime.now)
 
     meta = {'allow_inheritance': True, 'collection': 'employees'}
+
+
+class Lecturer(Employee):
+    academic_title = me.StringField()
+    highest_degree = me.IntField()
 
 
 class ResearchArticle(me.Document):
