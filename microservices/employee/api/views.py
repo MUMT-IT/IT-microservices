@@ -23,6 +23,12 @@ class AffiliationResource(Resource):
         data = Department.objects(id=object_id).to_json()
         return data, 200, {'Content-type': 'application/json'}
 
+class AffiliationSlugResource(Resource):
+    @cors.crossdomain(origin='*')
+    def get(self, slug):
+        data = Department.objects(slug=slug).to_json()
+        return data, 200, {'Content-type': 'application/json'}
+
 
 class EmployeeListResource(Resource):
     @cors.crossdomain(origin='*')
@@ -86,6 +92,7 @@ class ResearchArticleListResource(Resource):
 
 api.add_resource(AffiliationListResource, '/affiliations/')
 api.add_resource(AffiliationResource, '/affiliations/<ObjectId:object_id>')
+api.add_resource(AffiliationSlugResource, '/affiliations/slug/<slug>')
 api.add_resource(EmployeeListResource, '/employees/')
 api.add_resource(EmployeeResource, '/employees/<ObjectId:employee_id>')
 api.add_resource(ProfileImageResource, '/employees/image/<ObjectId:employee_id>')
