@@ -1,0 +1,4 @@
+research 8800
+education 6600
+health_services 5560
+employee 5570
