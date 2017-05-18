@@ -2,9 +2,9 @@ from main import db
 from flask import jsonify, request
 from . import research_bp as research
 from flask_cors import cross_origin
-from models import ScopusAbstract, ScopusSubjArea, ScopusAuthor
+from models import ScopusAbstract, ScopusSubjArea, ScopusAuthor, ScopusAbstractCount
 from sqlalchemy import and_
-from itertools import groupby
+from collections import defaultdict
 
 
 @research.route('/abstracts/numbers')
@@ -133,3 +133,23 @@ def get_abstracts_by_author():
         })
     print(len(papers))
     return jsonify(data=papers)
+
+
+@research.route('/abstracts/benchmark/numbers/')
+@cross_origin()
+def get_abstracts_benchmark():
+    data = defaultdict(list);
+    for abs in db.session.query(ScopusAbstractCount):
+        d = {
+            'institute': abs.institute,
+            'year': abs.year,
+            'articles': abs.articles,
+            'citations': abs.citations
+        }
+        data[abs.institute].append(d)
+
+    dat = []
+    for inst in data:
+        data[inst] = sorted(data[inst], key=lambda x: x['year'])
+        dat.append({'institute': inst, 'counts': data[inst]})
+    return jsonify(dat)

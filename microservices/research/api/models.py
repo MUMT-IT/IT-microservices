@@ -84,7 +84,7 @@ class ScopusSubjArea(db.Model):
     area = db.Column(db.String(8))
     articles = db.Column(db.Integer)
     citations = db.Column(db.Integer)
-    
+
 
 # class ScopusArea(db.Model):
 #     __tablename__ = 'scopus_areas'
@@ -95,7 +95,7 @@ class ScopusSubjArea(db.Model):
 #     abstracts = db.relationship('ScopusAbstract',
 #                         secondary=area_abstracts,
 #                         backref=db.backref('areas', lazy='dynamic'))
-# 
+#
 #     def __repr__(self):
 #         return "<ScopusArea area=%s>" % (self.area)
 
@@ -123,3 +123,12 @@ class AbstractSchema(ma.Schema):
     citedby_count = fields.Integer()
     cover_date = fields.DateTime()
     url = ma.URLFor('api.abstractresource', id='<id>', _external=True)
+
+
+class ScopusAbstractCount(db.Model):
+    __tablename__ = 'abstract_count'
+    id = db.Column(db.Integer(), primary_key=True)
+    institute = db.Column(db.String(128))
+    year = db.Column(db.Integer())
+    articles = db.Column(db.Integer())
+    citations = db.Column(db.Integer())
