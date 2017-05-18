@@ -15,6 +15,8 @@ ScopusSubjArea = Base.classes.scopus_subj_areas
 
 API_KEY = '871232b0f825c9b5f38f8833dc0d8691'
 
+# https://api.elsevier.com/documentation/search/SCOPUSSearchTips.htm
+
 def main(affil, abbr, year):
     subj_areas = {'COMP': 0, 'CENG': 0, 'CHEM': 0,
                     'PHAR': 0, 'AGRI': 0, 'ARTS': 0,
