@@ -4,7 +4,7 @@ from flask import request, make_response, jsonify
 from flask_restful import Api, Resource
 from flask_restful.utils import cors
 from flask_cors import cross_origin
-from models import Department, Employee, ResearchArticle
+from models import Department, Employee, ResearchArticle, Lecturer
 from . import employee_bp
 
 api = Api(employee_bp)
@@ -34,9 +34,19 @@ class EmployeeListResource(Resource):
     @cors.crossdomain(origin='*')
     def get(self):
         dept_slug = request.args.get('department_slug')
-        print('dept slug is {}'.format(dept_slug))
-        dept = Department.objects(slug=dept_slug).first()
-        employees = Employee.objects(department=dept)
+        job = request.args.get('job')
+        if dept_slug:
+            dept = Department.objects(slug=dept_slug).first()
+            if job == 'lecturer':
+                employees = Lecturer.objects(department=dept)
+            else:
+                employees = Employee.objects(department=dept)
+        else:
+            if job == 'lecturer':
+                employees = Lecturer.objects
+            else:
+                employees = Employee.objects
+
         return employees.to_json(), 200, {'Content-type': 'application/json'}
 
 
