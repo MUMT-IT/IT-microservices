@@ -37,9 +37,28 @@ def get_abstracts():
     return jsonify({'articles': d, 'citations': c})
 
 
+@research.route('/abstracts/list/<int:year>')
+@cross_origin()
+def get_abstracts_by_year(year):
+    d = []
+    for abs in db.session.query(ScopusAbstract):
+        if abs.cover_date.year == year:
+            authors = []
+            for au in abs.authors:
+                authors.append({'first_name': au.given_name, 'last_name': au.surname})
+            d.append({'id': abs.id, 'title': abs.title, 'authors': authors,
+                'cover_date': abs.cover_date, 'journal': abs.publication_name,
+                'abstract': abs.description, 'citedby_count': abs.citedby_count,
+                'url': abs.url})
+
+    d = sorted(d, key=lambda x: x['cover_date'])
+
+    return jsonify({'data': d})
+
+
 @research.route('/abstracts/list')
 @cross_origin()
-def get_abstracts_by_year():
+def get_abstracts_all_years():
     d = []
     for abs in db.session.query(ScopusAbstract):
         authors = []
@@ -78,21 +97,26 @@ def get_abstracts_by_subject_area():
 def get_abstracts_by_author():
     given_name = request.args.get('first_name')
     surname = request.args.get('last_name')
+    year = request.args.get('year')
     if given_name and surname:
         author = ScopusAuthor.query.filter(and_(ScopusAuthor.surname==surname,
-                                    ScopusAuthor.given_name==given_name)).first()
+                                        ScopusAuthor.given_name==given_name)).first()
     elif surname:
         author = ScopusAuthor.query.filter(ScopusAuthor.surname==surname).first()
     elif given_name:
         author = ScopusAuthor.query.filter(ScopusAuthor.given_name==given_name).first()
     else:
-        return jsonify(data={})
+        return jsonify(data=[])
 
     if not author:
-        return jsonify(data={})
+        return jsonify(data=[])
 
     papers = []
     for p in author.abstracts:
+        if year:
+            if p.cover_date.year != int(year):
+                continue
+
         abs_authors = []
         for au in p.authors:
             abs_authors.append({
@@ -108,4 +132,5 @@ def get_abstracts_by_author():
             'authors': abs_authors,
             'description': p.description
         })
+    print(len(papers))
     return jsonify(data=papers)
