@@ -77,18 +77,17 @@ def get_abstracts_all_years():
 @research.route('/abstracts/subject_areas/')
 @cross_origin()
 def get_abstracts_by_subject_area():
-    years = range(2010, 2018)
-    results = {}
+    years = range(2013, 2018)
+    results = []
     for year in years:
+        num_articles = []
         data = ScopusSubjArea.query.filter(ScopusSubjArea.year==str(year))
         for d in data:
-            if year not in results:
-                results[year] = []
-            else:
-                results[year].append({'affil': d.affil_abbr,
-                                        'area': d.area,
-                                        'articles': d.articles,
-                                        'citations': d.citations})
+            num_articles.append({'affil': d.affil_abbr,
+                                    'area': d.area,
+                                    'articles': d.articles,
+                                    'citations': d.citations})
+        results.append({'year': year, 'counts': num_articles})
     return jsonify(results)
 
 
