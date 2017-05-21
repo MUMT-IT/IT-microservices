@@ -15,7 +15,8 @@ from main import db
 from models import (SurveyCategory, SurveyWRSSummary,
                     SurveyWRSTeachingSummary, FollowUpSummary,
                     AcademicProgram, EvaluationSummary,
-                    WRSEdpexScore, WRSEdpexTopic)
+                    WRSEdpexScore, WRSEdpexTopic,
+                    SatisfactionScore)
 
 
 @education.route('/gdrive/files/')
@@ -500,4 +501,47 @@ def get_edpex_wrs_results():
         t = WRSEdpexTopic.objects(slug=slug).first()
         scores = [dict(year=s.year, score=s.score) for s in t.scores]
         data.append(dict(slug=slug, scores=scores, desc=t.desc))
+    return jsonify(data)
+
+
+@education.route('/evaluation/edpex/satisfaction/load/')
+@cross_origin()
+def load_edpex_satisfaction_results():
+    cred = get_credentials_from_file()  # get_credentials func cannot run
+    http = cred.authorize(httplib2.Http())
+    service = discovery.build('drive', 'v3', http=http)
+
+    folder_id = '0B45WRw4HPnk_YlhxbjFJeDVoWk0'
+    files = get_file_list(folder_id, cred)
+    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
+    scope = ['https://spreadsheets.google.com/feeds']
+    gc_credentials = \
+        ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
+    gc = gspread.authorize(gc_credentials)
+    for f in files:
+        file_name, file_id = f['name'], f['id']
+        print('Loading data from file: {} {}'.format(file_name, file_id))
+        try:
+            wks = gc.open_by_key(file_id).get_worksheet(10)
+        except:
+            print('Error!')
+            continue
+        else:
+            years = wks.col_values(1)[3:11]
+            goals = wks.col_values(2)[3:11]
+            scores = wks.col_values(3)[3:11]
+            for i in range(len(scores)):
+                s = SatisfactionScore(year=int(years[i]),
+                    goal=float(goals[i]), score=float(scores[i]))
+                s.save()
+
+    return jsonify(response="success")
+
+
+@education.route('/evaluation/edpex/satisfaction/')
+@cross_origin()
+def get_edpex_satisfaction_results():
+    data = []
+    for s in SatisfactionScore.objects:
+        data.append(dict(year=s.year, goal=s.goal, score=s.score))
     return jsonify(data)

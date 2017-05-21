@@ -85,3 +85,10 @@ class WRSEdpexTopic(me.Document):
     desc = me.StringField()
     slug = me.StringField()
     scores = me.EmbeddedDocumentListField(WRSEdpexScore, default=[])
+
+
+class SatisfactionScore(me.Document):
+    year = me.IntField()
+    score = me.FloatField()
+    goal = me.FloatField()
+
