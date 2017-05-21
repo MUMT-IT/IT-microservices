@@ -5,18 +5,17 @@ import numpy as np
 
 from collections import defaultdict
 
-from flask import jsonify, request, redirect, session
+from flask import jsonify
 from . import education_bp as education
 from .drive import get_file_list, get_credentials_from_file
 from apiclient import discovery
-from oauth2client import client
 from oauth2client.service_account import ServiceAccountCredentials
 from flask_cors import cross_origin
 from main import db
-from models import (SurveyCategory, SurveyAnswer,
-                        SurveyWRSSummary, SurveyWRSTeachingSummary,
-                        SurveyQuestion, FollowUpSummary,
-                        AcademicProgram, EvaluationSummary)
+from models import (SurveyCategory, SurveyWRSSummary,
+                    SurveyWRSTeachingSummary, FollowUpSummary,
+                    AcademicProgram, EvaluationSummary,
+                    WRSEdpexScore, WRSEdpexTopic)
 
 
 @education.route('/gdrive/files/')
@@ -42,7 +41,7 @@ def get_gdrive_file_list():
 @education.route('/gdrive/wrs/update/')
 def udpate_wrs():
     '''Load data from Wellrounded scholar spreadsheet to DB'''
-    cred = get_credentials_from_file()  # get_credentials func cannot run 
+    cred = get_credentials_from_file()  # get_credentials func cannot run
                                         # inside flask this way
     http = cred.authorize(httplib2.Http())
     service = discovery.build('drive', 'v3', http=http)
@@ -111,7 +110,7 @@ def udpate_wrs():
                 teaching_wrs_results[lm]['leadership'] = wks.col_values(i+4)[1:]
                 teaching_wrs_results[lm]['socialresp'] = wks.col_values(i+5)[1:]
                 j += 1
-                
+
             i = 0
             while True:
                 if(prior_knowledge[i] == '' and prior_prof_skill[i] == '' and
@@ -223,7 +222,7 @@ def get_wrs_teaching_results():
 @education.route('/gdrive/followup/update/')
 def udpate_followup():
     '''Load data from follow up spreadsheet to DB'''
-    cred = get_credentials_from_file()  # get_credentials func cannot run 
+    cred = get_credentials_from_file()  # get_credentials func cannot run
                                         # inside flask this way
     http = cred.authorize(httplib2.Http())
     service = discovery.build('drive', 'v3', http=http)
@@ -291,7 +290,7 @@ def get_followup_result():
 @education.route('/gdrive/evaluation/update/')
 def udpate_evaluation():
     '''Load data from evaluation spreadsheet to DB'''
-    cred = get_credentials_from_file()  # get_credentials func cannot run 
+    cred = get_credentials_from_file()  # get_credentials func cannot run
                                         # inside flask this way
     http = cred.authorize(httplib2.Http())
     service = discovery.build('drive', 'v3', http=http)
@@ -440,3 +439,65 @@ def get_evaluation_result():
         }
         d.append(r)
     return jsonify(d)
+
+
+@education.route('/evaluation/edpex/wrs/load/')
+@cross_origin()
+def load_edpex_wrs_results():
+    cred = get_credentials_from_file()  # get_credentials func cannot run
+    # inside flask this way
+    http = cred.authorize(httplib2.Http())
+    service = discovery.build('drive', 'v3', http=http)
+
+    folder_id = '0B45WRw4HPnk_YlhxbjFJeDVoWk0'
+    files = get_file_list(folder_id, cred)
+    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
+    scope = ['https://spreadsheets.google.com/feeds']
+    gc_credentials = \
+        ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
+    gc = gspread.authorize(gc_credentials)
+    for f in files:
+        file_name, file_id = f['name'], f['id']
+        print('Loading data from file: {} {}'.format(file_name, file_id))
+        try:
+            wks = gc.open_by_key(file_id).get_worksheet(4)
+        except:
+            print('Error!')
+            continue
+        else:
+            t_professional = WRSEdpexTopic.objects(slug="professional").first()
+            t_creativity = WRSEdpexTopic.objects(slug="creativity").first()
+            t_analytical = WRSEdpexTopic.objects(slug="analytical").first()
+            t_leadership = WRSEdpexTopic.objects(slug="leadership").first()
+            t_social_resp = WRSEdpexTopic.objects(slug="social_resp").first()
+            for idx in range(2,6):
+                year = int(wks.col_values(idx)[2].split()[-1])
+                scores = wks.col_values(idx)[3:8]
+                professional_score = WRSEdpexScore(score=float(scores[0]), year=year)
+                creativity_score = WRSEdpexScore(score=scores[1], year=year)
+                analytical_score = WRSEdpexScore(score=scores[2], year=year)
+                leadership_score = WRSEdpexScore(score=scores[3], year=year)
+                social_score = WRSEdpexScore(score=scores[4], year=year)
+                t_professional.scores.append(professional_score)
+                t_creativity.scores.append(creativity_score)
+                t_analytical.scores.append(analytical_score)
+                t_leadership.scores.append(leadership_score)
+                t_social_resp.scores.append(social_score)
+                t_professional.save()
+                t_creativity.save()
+                t_leadership.save()
+                t_analytical.save()
+                t_social_resp.save()
+    return jsonify([])
+
+
+@education.route('/evaluation/edpex/wrs/')
+@cross_origin()
+def get_edpex_wrs_results():
+    data = []
+    for slug in ["professional", "creativity", "analytical",
+                 "leadership", "social_resp"]:
+        t = WRSEdpexTopic.objects(slug=slug).first()
+        scores = [dict(year=s.year, score=s.score) for s in t.scores]
+        data.append(dict(slug=slug, scores=scores, desc=t.desc))
+    return jsonify(data)

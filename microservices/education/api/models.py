@@ -1,4 +1,4 @@
-from main import db, ma
+from main import db, ma, me
 
 class SurveyCategory(db.Model):
     __tablename__ = 'survey_categories'
@@ -74,3 +74,14 @@ class EvaluationSummary(db.Model):
     avg_morals = db.Column(db.Float())
     avg_identity = db.Column(db.Float())
     avg_overall = db.Column(db.Float())
+
+
+class WRSEdpexScore(me.EmbeddedDocument):
+    year = me.IntField()
+    score = me.FloatField()
+
+
+class WRSEdpexTopic(me.Document):
+    desc = me.StringField()
+    slug = me.StringField()
+    scores = me.EmbeddedDocumentListField(WRSEdpexScore, default=[])
