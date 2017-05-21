@@ -92,3 +92,18 @@ class SatisfactionScore(me.Document):
     score = me.FloatField()
     goal = me.FloatField()
 
+
+class LicenseExam(me.Document):
+    year = me.IntField()
+    institute = me.StringField()
+    percent = me.FloatField()
+    meta = {'allow_inheritance': True}
+
+
+class MTLicenseExam(LicenseExam):
+    program = me.StringField()
+
+
+class RTLicenseExam(LicenseExam):
+    program = me.StringField()
+

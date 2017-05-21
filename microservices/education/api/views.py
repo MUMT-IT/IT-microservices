@@ -16,7 +16,7 @@ from models import (SurveyCategory, SurveyWRSSummary,
                     SurveyWRSTeachingSummary, FollowUpSummary,
                     AcademicProgram, EvaluationSummary,
                     WRSEdpexScore, WRSEdpexTopic,
-                    SatisfactionScore)
+                    SatisfactionScore, MTLicenseExam, RTLicenseExam)
 
 
 @education.route('/gdrive/files/')
@@ -545,3 +545,110 @@ def get_edpex_satisfaction_results():
     for s in SatisfactionScore.objects:
         data.append(dict(year=s.year, goal=s.goal, score=s.score))
     return jsonify(data)
+
+
+@education.route('/evaluation/edpex/license/load/')
+@cross_origin()
+def load_edpex_license_results():
+    cred = get_credentials_from_file()  # get_credentials func cannot run
+    http = cred.authorize(httplib2.Http())
+    service = discovery.build('drive', 'v3', http=http)
+
+    folder_id = '0B45WRw4HPnk_YlhxbjFJeDVoWk0'
+    files = get_file_list(folder_id, cred)
+    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
+    scope = ['https://spreadsheets.google.com/feeds']
+    gc_credentials = \
+        ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
+    gc = gspread.authorize(gc_credentials)
+    for f in files:
+        file_name, file_id = f['name'], f['id']
+        print('Loading data from file: {} {}'.format(file_name, file_id))
+        try:
+            wks = gc.open_by_key(file_id).get_worksheet(14)
+        except:
+            print('Error!')
+            continue
+        else:
+            years = wks.col_values(1)[2:10]
+            mumt = wks.col_values(2)[2:10]
+            mtkku = wks.col_values(3)[2:10]
+            mtcmu = wks.col_values(4)[2:10]
+
+            rtyears = wks.col_values(1)[15:22]
+            murt = wks.col_values(2)[15:22]
+            rtcmu = wks.col_values(3)[15:22]
+            for i in range(len(years)):
+                try:
+                    mumt_score = MTLicenseExam(year=int(years[i]),
+                                        institute="MUMT", percent=float(mumt[i]),
+                                        program="MT")
+                except:
+                    mumt_score = MTLicenseExam(year=int(years[i]),
+                                        instistute="MUMT", percent=None,
+                                        program="MT")
+                mumt_score.save()
+                try:
+                    mtkku_score = MTLicenseExam(year=int(years[i]),
+                                        institute="MT-KKU", percent=float(mtkku[i]),
+                                        program="MT")
+                except:
+                    mtkku_score = MTLicenseExam(year=int(years[i]),
+                                        institute="MT-KKU", percent=None,
+                                        program="MT")
+                mtkku_score.save()
+                try:
+                    mtcmu_score = MTLicenseExam(year=int(years[i]),
+                                        institute="MT-CMU", percent=float(mtcmu[i]),
+                                        program="MT")
+                except:
+                    mtcmu_score = MTLicenseExam(year=int(years[i]),
+                                        institute="MT-CMU", percent=None,
+                                        program="MT")
+                mtcmu_score.save()
+
+            for i in range(len(rtyears)):
+                try:
+                    murt_score = RTLicenseExam(year=int(years[i]),
+                                               institute="MURT", percent=float(murt[i]),
+                                               program="RT")
+                except:
+                    murt_score = RTLicenseExam(year=int(years[i]),
+                                               instistute="MUMT", percent=None,
+                                               program="RT")
+                murt_score.save()
+                try:
+                    rtcmu_score = RTLicenseExam(year=int(years[i]),
+                                                institute="RT-CMU", percent=float(rtcmu[i]),
+                                                program="RT")
+                except:
+                    rtcmu_score = RTLicenseExam(year=int(years[i]),
+                                                institute="RT-CMU", percent=None,
+                                                program="RT")
+                rtcmu_score.save()
+
+    return jsonify(response="success")
+
+
+@education.route('/evaluation/edpex/license/')
+@cross_origin()
+def get_edpex_license_results():
+    mt = []
+    rt = []
+    for m in MTLicenseExam.objects:
+        d = {
+            'institute': m.institute,
+            'year': m.year,
+            'percent': m.percent,
+        }
+        mt.append(d)
+
+    for r in RTLicenseExam.objects:
+        d = {
+            'institute': r.institute,
+            'year': r.year,
+            'percent': r.percent,
+        }
+        rt.append(d)
+
+    return jsonify(data={'mt': mt, 'rt': rt})
