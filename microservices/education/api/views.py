@@ -16,7 +16,8 @@ from models import (SurveyCategory, SurveyWRSSummary,
                     SurveyWRSTeachingSummary, FollowUpSummary,
                     AcademicProgram, EvaluationSummary,
                     WRSEdpexScore, WRSEdpexTopic,
-                    SatisfactionScore, MTLicenseExam, RTLicenseExam)
+                    SatisfactionScore, MTLicenseExam, RTLicenseExam,
+                    MTJobEmployed, RTJobEmployed)
 
 
 @education.route('/gdrive/files/')
@@ -519,6 +520,7 @@ def load_edpex_satisfaction_results():
         ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
     gc = gspread.authorize(gc_credentials)
     for f in files:
+        #TODO: specify file ID here
         file_name, file_id = f['name'], f['id']
         print('Loading data from file: {} {}'.format(file_name, file_id))
         try:
@@ -562,6 +564,7 @@ def load_edpex_license_results():
         ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
     gc = gspread.authorize(gc_credentials)
     for f in files:
+        #TODO: specify file ID here
         file_name, file_id = f['name'], f['id']
         print('Loading data from file: {} {}'.format(file_name, file_id))
         try:
@@ -644,6 +647,110 @@ def get_edpex_license_results():
         mt.append(d)
 
     for r in RTLicenseExam.objects:
+        d = {
+            'institute': r.institute,
+            'year': r.year,
+            'percent': r.percent,
+        }
+        rt.append(d)
+
+    return jsonify(data={'mt': mt, 'rt': rt})
+
+
+@education.route('/evaluation/edpex/employment/load/')
+@cross_origin()
+def load_edpex_employment_results():
+    cred = get_credentials_from_file()  # get_credentials func cannot run
+    http = cred.authorize(httplib2.Http())
+    service = discovery.build('drive', 'v3', http=http)
+
+    folder_id = '0B45WRw4HPnk_YlhxbjFJeDVoWk0'
+    files = get_file_list(folder_id, cred)
+    service_key_file = 'api/AcademicAffairs-420cd46d6400.json'
+    scope = ['https://spreadsheets.google.com/feeds']
+    gc_credentials = \
+        ServiceAccountCredentials.from_json_keyfile_name(service_key_file, scope)
+    gc = gspread.authorize(gc_credentials)
+    for f in files:
+        #TODO: specify file ID here
+        file_name, file_id = f['name'], f['id']
+        try:
+            wks = gc.open_by_key(file_id).get_worksheet(15)
+        except:
+            print('Error!')
+            continue
+        else:
+            years = wks.col_values(1)[2:9]
+            mtmu_data = wks.col_values(2)[2:9]
+            rtmu_data = wks.col_values(3)[2:9]
+            mtkku_data = wks.col_values(4)[2:9]
+            mtcmu_data = wks.col_values(5)[2:9]
+            rtcmu_data = wks.col_values(6)[2:9]
+
+        for i in range(len(years)):
+            try:
+                mtmu_ = MTJobEmployed(year=int(years[i]),
+                                           institute="MUMT", percent=float(mtmu_data[i]),
+                                           program="MT")
+            except:
+                mtmu_ = MTJobEmployed(year=int(years[i]),
+                                           institute="MUMT", percent=None,
+                                           program="MT")
+            mtmu_.save()
+            try:
+                mtcmu_ = MTJobEmployed(year=int(years[i]),
+                                    institute="MT-CMU", percent=float(mtcmu_data[i]),
+                                    program="MT")
+            except:
+                mtcmu_ = MTJobEmployed(year=int(years[i]),
+                                    institute="MT-CMU", percent=None,
+                                    program="MT")
+            mtcmu_.save()
+            try:
+                mtkku_ = MTJobEmployed(year=int(years[i]),
+                                    institute="MT-KKU", percent=float(mtkku_data[i]),
+                                    program="MT")
+            except:
+                mtkku_ = MTJobEmployed(year=int(years[i]),
+                                    institute="MT-KKU", percent=None,
+                                    program="MT")
+            mtkku_.save()
+            try:
+                rtmu_ = RTJobEmployed(year=int(years[i]),
+                                    institute="MURT", percent=float(rtmu_data[i]),
+                                    program="RT")
+            except:
+                rtmu_ = RTJobEmployed(year=int(years[i]),
+                                    institute="MURT", percent=None,
+                                    program="RT")
+            rtmu_.save()
+            try:
+                rtcmu_ = RTJobEmployed(year=int(years[i]),
+                                      institute="RT-CMU", percent=float(rtcmu_data[i]),
+                                      program="RT")
+            except:
+                rtcmu_ = RTJobEmployed(year=int(years[i]),
+                                      institute="RT-CMU", percent=None,
+                                      program="RT")
+            rtcmu_.save()
+
+    return jsonify(status="success")
+
+
+@education.route('/evaluation/edpex/employment/')
+@cross_origin()
+def get_edpex_employment_results():
+    mt = []
+    rt = []
+    for m in MTJobEmployed.objects:
+        d = {
+            'institute': m.institute,
+            'year': m.year,
+            'percent': m.percent,
+        }
+        mt.append(d)
+
+    for r in RTJobEmployed.objects:
         d = {
             'institute': r.institute,
             'year': r.year,

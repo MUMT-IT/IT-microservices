@@ -107,3 +107,17 @@ class MTLicenseExam(LicenseExam):
 class RTLicenseExam(LicenseExam):
     program = me.StringField()
 
+
+class JobEmployed(me.Document):
+    year = me.IntField()
+    institute = me.StringField()
+    percent = me.FloatField()
+    meta = {'allow_inheritance': True}
+
+
+class MTJobEmployed(JobEmployed):
+    program = me.StringField()
+
+
+class RTJobEmployed(JobEmployed):
+    program = me.StringField()
